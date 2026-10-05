@@ -164,6 +164,25 @@ describe('BookingsService changes', () => {
     return { service, repo, mail, files };
   }
 
+  it('hides staff notes and internal statuses from customers', async () => {
+    const { service } = setup(null);
+    const row = {
+      ...scheduled(),
+      status: 'follow_up_required',
+      treatmentPlan: 'Gel bait',
+      followUpReason: 'Still active',
+      user: { id: 'u1' },
+    };
+    Object.assign(service, {
+      bookings: { find: vi.fn(() => Promise.resolve([row])) },
+    });
+    const [booking] = await service.listForUser('u1');
+    expect(booking).toMatchObject({ status: 'completed', photoCount: 1 });
+    expect(booking).not.toHaveProperty('treatmentPlan');
+    expect(booking).not.toHaveProperty('followUpReason');
+    expect(booking).not.toHaveProperty('photos');
+  });
+
   it("treats another customer's booking as not found", async () => {
     const { service, repo } = setup(null);
     await expect(service.requestCancellation('u2', 3)).rejects.toBeInstanceOf(

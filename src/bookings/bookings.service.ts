@@ -75,16 +75,32 @@ export class BookingsService {
     return { reference };
   }
 
-  /** The signed-in user's bookings, newest first. Photo file names stay server-side. */
+  /**
+   * The signed-in user's bookings, newest first. Photo file names and staff notes
+   * (treatment plan, follow-up reason) stay server-side.
+   */
   async listForUser(userId: string) {
     const rows = await this.bookings.find({
       where: { user: { id: userId } },
       order: { createdAt: 'DESC' },
     });
-    return rows.map(({ user: _user, photos, ...booking }) => ({
-      ...booking,
-      photoCount: photos.length,
-    }));
+    return rows.map(
+      ({
+        user: _user,
+        photos,
+        treatmentPlan: _plan,
+        followUpReason: _reason,
+        ...booking
+      }) => ({
+        ...booking,
+        // Internal: to the customer the visit is done; the follow-up is its own booking.
+        status:
+          booking.status === 'follow_up_required'
+            ? 'completed'
+            : booking.status,
+        photoCount: photos.length,
+      }),
+    );
   }
 
   private async findOwned(userId: string, id: number) {

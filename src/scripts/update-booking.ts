@@ -7,7 +7,7 @@
  *   npm run bookings:update -- --reference TX-BK-000001 --confirm-cancellation
  *   npm run bookings:update -- --reference TX-BK-000001 --decline-request
  *
- * Statuses: requested, scheduled, on_the_way, in_progress, completed, closed.
+ * Statuses: requested, scheduled, on_the_way, in_progress, completed, follow_up_required, closed.
  */
 import { NestFactory } from '@nestjs/core';
 import { parseArgs } from 'node:util';

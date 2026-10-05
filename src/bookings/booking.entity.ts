@@ -2,9 +2,13 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinTable,
+  ManyToMany,
   ManyToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Customer } from '../customers/customer.entity.js';
+import { Fumigator } from '../fumigators/fumigator.entity.js';
 import type { StorageDriver } from '../storage/storage.service.js';
 import { User } from '../users/user.entity.js';
 
@@ -16,7 +20,8 @@ export const PROPERTY_TYPES = [
 export const TIME_SLOTS = ['morning', 'afternoon', 'evening'] as const;
 /**
  * requested: waiting for the team; scheduled: date and time agreed; on_the_way and
- * in_progress: on the day; completed: work done; closed: cancelled or otherwise ended.
+ * in_progress: on the day; completed: work done; follow_up_required: done, but another
+ * visit is needed (see followUpReason); closed: cancelled or otherwise ended.
  */
 export const BOOKING_STATUSES = [
   'requested',
@@ -24,6 +29,7 @@ export const BOOKING_STATUSES = [
   'on_the_way',
   'in_progress',
   'completed',
+  'follow_up_required',
   'closed',
 ] as const;
 export type BookingStatus = (typeof BOOKING_STATUSES)[number];
@@ -122,8 +128,37 @@ export class Booking {
   @Column({ type: 'varchar', length: 5, nullable: true })
   scheduledTime: string | null;
 
+  /** Last day of the visit; after scheduledDate for multi-day jobs. */
+  @Column({ type: 'date', nullable: true })
+  endDate: string | null;
+
+  /** 24-hour HH:MM when the work ends (on endDate). */
+  @Column({ type: 'varchar', length: 5, nullable: true })
+  endTime: string | null;
+
+  /** Names of the assigned fumigators, as customers see them. Kept in step with `fumigators`. */
   @Column({ type: 'varchar', length: 200, nullable: true })
   assignedFumigator: string | null;
+
+  @ManyToMany(() => Fumigator)
+  @JoinTable({ name: 'booking_fumigators' })
+  fumigators: Fumigator[];
+
+  /** Set once an admin has linked the booking to a customer record. */
+  @ManyToOne(() => Customer, { nullable: true, onDelete: 'SET NULL' })
+  customer: Customer | null;
+
+  /** Planned chemicals / treatment method (staff only). */
+  @Column({ type: 'text', nullable: true })
+  treatmentPlan: string | null;
+
+  /** Why another visit is needed (status follow_up_required). */
+  @Column({ type: 'text', nullable: true })
+  followUpReason: string | null;
+
+  /** The job this one follows up. */
+  @ManyToOne(() => Booking, { nullable: true, onDelete: 'SET NULL' })
+  followUpOf: Booking | null;
 
   @Column({ type: 'jsonb', nullable: true })
   rescheduleRequest: RescheduleRequest | null;

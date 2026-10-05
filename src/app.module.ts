@@ -5,6 +5,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { MIGRATIONS_GLOB } from './database/data-source.js';
 import { AddressesModule } from './addresses/addresses.module.js';
+import { AdminModule } from './admin/admin.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BookingsModule } from './bookings/bookings.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
@@ -39,6 +40,7 @@ import { UsersModule } from './users/users.module.js';
     ContactMessagesModule,
     BookingsModule,
     DocumentsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

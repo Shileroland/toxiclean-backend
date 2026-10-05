@@ -6,7 +6,12 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { PasswordResetToken } from './password-reset-token.entity.js';
 import { Session } from './session.entity.js';
-import { OptionalSessionGuard, SessionGuard } from './session.guard.js';
+import {
+  AdminGuard,
+  OptionalSessionGuard,
+  SessionGuard,
+} from './session.guard.js';
+import { SuperAdminSeeder } from './super-admin.seeder.js';
 
 @Module({
   imports: [
@@ -15,7 +20,13 @@ import { OptionalSessionGuard, SessionGuard } from './session.guard.js';
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 60 }]),
   ],
   controllers: [AuthController],
-  providers: [AuthService, SessionGuard, OptionalSessionGuard],
-  exports: [AuthService, SessionGuard, OptionalSessionGuard],
+  providers: [
+    AuthService,
+    SessionGuard,
+    OptionalSessionGuard,
+    AdminGuard,
+    SuperAdminSeeder,
+  ],
+  exports: [AuthService, SessionGuard, OptionalSessionGuard, AdminGuard],
 })
 export class AuthModule {}
