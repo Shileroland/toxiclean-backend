@@ -3,9 +3,17 @@ import {
   CreateDateColumn,
   Entity,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
+  type Relation,
 } from 'typeorm';
+import { bigintNumber } from '../database/transformers.js';
 import { User } from '../users/user.entity.js';
+import {
+  PurchaseRequestContact,
+  PurchaseRequestNote,
+  PurchaseRequestPayment,
+} from './purchase-request-activity.entity.js';
 
 export type QuoteRequestItem = {
   productSlug: string;
@@ -13,6 +21,8 @@ export type QuoteRequestItem = {
   quantity: number;
   /** Estimated unit price shown to the customer, in the request's currency (product requests only). */
   unitPrice?: number;
+  /** Unit price agreed with the customer when staff confirmed the request. */
+  agreedUnitPrice?: number;
 };
 
 /** `bulk`: the bulk quote form. `product`: checkout of the product request basket. */
@@ -26,13 +36,23 @@ export type Currency = (typeof CURRENCIES)[number];
 export const COUNTRIES = ['NG', 'BJ'] as const;
 export const DELIVERY_METHODS = ['delivery', 'pickup'] as const;
 export const CONTACT_METHODS = ['whatsapp', 'phone', 'email'] as const;
+/**
+ * requested (shown as "New") → contacted → confirmed (prices agreed) → payment_pending →
+ * payment_received (paid in full) → processing → dispatched (delivery) or
+ * ready_for_pickup (pickup) → completed. declined and cancelled end a request early.
+ */
 export const QUOTE_STATUSES = [
   'requested',
   'contacted',
   'confirmed',
+  'payment_pending',
+  'payment_received',
   'processing',
-  'ready',
+  'dispatched',
+  'ready_for_pickup',
   'completed',
+  'declined',
+  'cancelled',
 ] as const;
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
 
@@ -93,6 +113,22 @@ export class QuoteRequest {
 
   @Column({ type: 'varchar', length: 20, default: 'requested' })
   status: QuoteStatus;
+
+  /** Sum of the agreed prices, set when staff confirm the request. */
+  @Column({ type: 'bigint', nullable: true, transformer: bigintNumber })
+  confirmedTotal: number | null;
+
+  @Column({ type: 'text', nullable: true })
+  declineReason: string | null;
+
+  @OneToMany(() => PurchaseRequestPayment, (p) => p.request)
+  payments: Relation<PurchaseRequestPayment[]>;
+
+  @OneToMany(() => PurchaseRequestContact, (c) => c.request)
+  contacts: Relation<PurchaseRequestContact[]>;
+
+  @OneToMany(() => PurchaseRequestNote, (n) => n.request)
+  internalNotes: Relation<PurchaseRequestNote[]>;
 
   /** Set when the request was submitted while signed in. */
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
