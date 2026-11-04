@@ -1,12 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
 import { createReadStream } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { dirname, join } from 'node:path';
 
@@ -103,5 +104,22 @@ export class StorageService {
       stream.once('error', reject);
     });
     return stream;
+  }
+
+  /** Removes a stored file; a file that's already gone is not an error. */
+  async delete(key: string, driver: StorageDriver = 'local'): Promise<void> {
+    if (driver === 's3') {
+      if (!this.s3 || !this.bucket) {
+        throw new Error('File is in S3 but S3_BUCKET is not configured.');
+      }
+      await this.s3.send(
+        new DeleteObjectCommand({
+          Bucket: this.bucket,
+          Key: this.prefix ? `${this.prefix}/${key}` : key,
+        }),
+      );
+      return;
+    }
+    await rm(join(this.uploadsDir, key), { force: true });
   }
 }

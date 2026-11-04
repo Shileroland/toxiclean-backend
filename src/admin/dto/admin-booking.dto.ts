@@ -45,11 +45,12 @@ export class ScheduleDto {
   @Matches(TIME, { message: 'endTime must be HH:MM' })
   endTime: string;
 
+  /** Left out of a multipart form when nobody is assigned yet, so it defaults to none. */
   @Transform(toArray)
   @IsArray()
   @ArrayMaxSize(10)
   @IsUUID('all', { each: true })
-  fumigatorIds: string[];
+  fumigatorIds: string[] = [];
 }
 
 export const ADMIN_STATUS_CHANGES = [

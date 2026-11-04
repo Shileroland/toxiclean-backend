@@ -157,4 +157,22 @@ export class AdminBookingsController {
       disposition: 'inline',
     });
   }
+
+  /** The treatment record's files: kind before, after or signoff (index 0). */
+  @Get(':id/treatment/:kind/:index')
+  async treatmentFile(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('kind') kind: string,
+    @Param('index', ParseIntPipe) index: number,
+  ) {
+    if (kind !== 'before' && kind !== 'after' && kind !== 'signoff') {
+      throw new BadRequestException('Unknown file.');
+    }
+    const { file, stream } = await this.bookings.openFile(id, kind, index);
+    return new StreamableFile(stream, {
+      type: file.mimeType,
+      length: file.size,
+      disposition: 'inline',
+    });
+  }
 }

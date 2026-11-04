@@ -46,6 +46,13 @@ const copy = {
       ignore:
         "If you didn't ask for this, you can ignore this email; your password won't change.",
     },
+    invite: {
+      subject: 'Your Toxiclean fumigator account',
+      heading: 'Set up your account',
+      body: 'You have been added to Toxiclean as a fumigator. Choose a password to see the bookings assigned to you and record your treatments. The link works once and expires in 7 days.',
+      action: 'Set password',
+      ignore: 'If you weren’t expecting this, you can ignore this email.',
+    },
     request: {
       subject: {
         product: (ref: string) =>
@@ -111,6 +118,14 @@ const copy = {
       action: 'Réinitialiser le mot de passe',
       ignore:
         "Si vous n'êtes pas à l'origine de cette demande, ignorez cet e-mail ; votre mot de passe ne changera pas.",
+    },
+    invite: {
+      subject: 'Votre compte fumigateur Toxiclean',
+      heading: 'Activez votre compte',
+      body: 'Vous avez été ajouté à Toxiclean en tant que fumigateur. Choisissez un mot de passe pour voir les interventions qui vous sont attribuées et enregistrer vos traitements. Le lien ne fonctionne qu’une fois et expire dans 7 jours.',
+      action: 'Choisir un mot de passe',
+      ignore:
+        'Si vous ne vous attendiez pas à cet e-mail, vous pouvez l’ignorer.',
     },
     request: {
       subject: {
@@ -273,8 +288,10 @@ export function passwordResetEmail(
   link: string,
   language: Language,
   webappUrl: string,
+  /** First-time setup for an account staff created (e.g. a fumigator). */
+  invite = false,
 ): Email {
-  const t = copy[language].reset;
+  const t = copy[language][invite ? 'invite' : 'reset'];
   return render(
     {
       subject: t.subject,

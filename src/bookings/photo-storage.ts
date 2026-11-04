@@ -24,10 +24,14 @@ export function detectImageType(
   return null;
 }
 
-/** Validates booking photos and stores them under `bookings/` with random names. */
+/**
+ * Validates photos and stores them under `folder/` (booking photos by default) with
+ * random names.
+ */
 export async function storeBookingPhotos(
   files: UploadedPhoto[],
   storage: StorageService,
+  folder: 'bookings' | 'surveys' | 'treatments' = 'bookings',
 ): Promise<BookingPhoto[]> {
   if (files.length > MAX_PHOTOS) {
     throw new BadRequestException(`You can upload up to ${MAX_PHOTOS} photos.`);
@@ -46,7 +50,7 @@ export async function storeBookingPhotos(
     checked.map(async ({ file, mimeType }) => {
       const fileName = `${randomUUID()}.${mimeType === 'image/png' ? 'png' : 'jpg'}`;
       const stored = await storage.put(
-        `bookings/${fileName}`,
+        `${folder}/${fileName}`,
         file.buffer,
         mimeType,
       );

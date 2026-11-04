@@ -8,7 +8,7 @@ import {
   type Relation,
 } from 'typeorm';
 import { bigintNumber } from '../database/transformers.js';
-import { User } from '../users/user.entity.js';
+import { type Language, User } from '../users/user.entity.js';
 import {
   PurchaseRequestContact,
   PurchaseRequestNote,
@@ -120,6 +120,10 @@ export class QuoteRequest {
 
   @Column({ type: 'text', nullable: true })
   declineReason: string | null;
+
+  /** The customer's language when they sent it (emails and the invoice use it). */
+  @Column({ type: 'varchar', length: 2, default: 'en' })
+  language: Language;
 
   @OneToMany(() => PurchaseRequestPayment, (p) => p.request)
   payments: Relation<PurchaseRequestPayment[]>;

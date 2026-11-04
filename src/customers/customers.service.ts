@@ -17,14 +17,22 @@ export type Location = {
   state: string;
   city: string;
   address: string;
+  /** False for the linked website account's own addresses, which only the customer can change. */
+  editable: boolean;
 };
+
+export function formatCustomerReference(number: number) {
+  return `TX-CU-${String(number).padStart(6, '0')}`;
+}
 
 const SEARCH_LIMIT = 10;
 
 /** "%" and "_" are wildcards in ILIKE; match them literally. */
 const escapeLike = (text: string) => text.replace(/[\\%_]/g, '\\$&');
 
-const sameAddress = (a: Omit<Location, 'id'>, b: Omit<Location, 'id'>) =>
+type Place = Omit<Location, 'id' | 'editable'>;
+
+const sameAddress = (a: Place, b: Place) =>
   [a.address, a.city, a.state].join('|').toLowerCase() ===
   [b.address, b.city, b.state].join('|').toLowerCase();
 
@@ -63,9 +71,7 @@ export class CustomersService {
   }
 
   async create(dto: CustomerDto) {
-    if (await this.customers.exists({ where: { email: dto.email } })) {
-      throw new ConflictException('A customer with this email already exists.');
-    }
+    await this.assertEmailFree(dto.email);
     const user = await this.users.findOne({ where: { email: dto.email } });
     const { type, name, phone, email, country, preferredContactMethod } = dto;
     return this.customers.save(
@@ -79,6 +85,31 @@ export class CustomersService {
         user,
       }),
     );
+  }
+
+  /** Changing the email re-links the customer to the website account with that email. */
+  async update(id: string, dto: CustomerDto) {
+    const customer = await this.get(id);
+    if (dto.email !== customer.email) {
+      await this.assertEmailFree(dto.email);
+      customer.user = await this.users.findOne({ where: { email: dto.email } });
+    }
+    const { type, name, phone, email, country, preferredContactMethod } = dto;
+    Object.assign(customer, {
+      type,
+      name,
+      phone,
+      email,
+      country,
+      preferredContactMethod,
+    });
+    return this.customers.save(customer);
+  }
+
+  private async assertEmailFree(email: string) {
+    if (await this.customers.exists({ where: { email } })) {
+      throw new ConflictException('A customer with this email already exists.');
+    }
   }
 
   /**
@@ -98,11 +129,13 @@ export class CustomersService {
         })
       : [];
     const all: Location[] = [];
-    for (const { id, country, state, city, address } of [
-      ...own,
-      ...fromAccount,
-    ]) {
-      const location = { id, country, state, city, address };
+    const places = [
+      ...own.map((place) => ({ place, editable: true })),
+      ...fromAccount.map((place) => ({ place, editable: false })),
+    ];
+    for (const { place, editable } of places) {
+      const { id, country, state, city, address } = place;
+      const location = { id, country, state, city, address, editable };
       if (!all.some((l) => sameAddress(l, location))) all.push(location);
     }
     return all;
@@ -123,7 +156,34 @@ export class CustomersService {
         customer,
       }),
     );
-    return { id, country, state, city, address };
+    return { id, country, state, city, address, editable: true };
+  }
+
+  /** Edits one of the customer's own locations (not the website account's addresses). */
+  async updateLocation(
+    customerId: string,
+    locationId: string,
+    dto: LocationDto,
+  ): Promise<Location> {
+    const location = await this.locations.findOne({
+      where: { id: locationId, customer: { id: customerId } },
+    });
+    if (!location) throw new NotFoundException('Location not found.');
+    const others = (await this.listLocations(customerId)).filter(
+      (l) => l.id !== locationId,
+    );
+    if (others.some((l) => sameAddress(l, dto))) {
+      throw new ConflictException('This customer already has that location.');
+    }
+    Object.assign(location, {
+      country: dto.country,
+      state: dto.state,
+      city: dto.city,
+      address: dto.address,
+    });
+    const { id, country, state, city, address } =
+      await this.locations.save(location);
+    return { id, country, state, city, address, editable: true };
   }
 
   /** A saved location by id, from the customer's own or their account's addresses. */

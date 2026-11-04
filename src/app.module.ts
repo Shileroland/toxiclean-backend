@@ -7,9 +7,12 @@ import { MIGRATIONS_GLOB } from './database/data-source.js';
 import { AddressesModule } from './addresses/addresses.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { CatalogModule } from './catalog/catalog.module.js';
+import { FinanceModule } from './finance/finance.module.js';
 import { BookingsModule } from './bookings/bookings.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
 import { ContactMessagesModule } from './contact-messages/contact-messages.module.js';
+import { PortalModule } from './fumigators/portal.module.js';
 import { QuoteRequestsModule } from './quote-requests/quote-requests.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { StorageModule } from './storage/storage.module.js';
@@ -41,6 +44,9 @@ import { UsersModule } from './users/users.module.js';
     BookingsModule,
     DocumentsModule,
     AdminModule,
+    PortalModule,
+    CatalogModule,
+    FinanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

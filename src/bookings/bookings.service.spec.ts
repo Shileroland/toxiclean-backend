@@ -73,10 +73,12 @@ describe('BookingsService', () => {
     update: vi.fn(() => Promise.resolve()),
   };
   const mail = { bookingReceived: vi.fn(() => Promise.resolve()) };
+  const leads = { forBooking: vi.fn() };
   const service = new BookingsService(
     repo as never,
     mail as never,
     storage as never,
+    leads as never,
   );
 
   const dto = {
@@ -107,6 +109,13 @@ describe('BookingsService', () => {
         email: 'daniel@example.com',
         user: { id: 'user-1' },
       }),
+    );
+  });
+
+  it('opens a lead for the request', async () => {
+    await service.create(dto, []);
+    expect(leads.forBooking).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 3, reference: 'TX-BK-000003' }),
     );
   });
 
@@ -160,6 +169,7 @@ describe('BookingsService changes', () => {
       repo as never,
       mail as never,
       files as never,
+      { forBooking: vi.fn() } as never,
     );
     return { service, repo, mail, files };
   }
