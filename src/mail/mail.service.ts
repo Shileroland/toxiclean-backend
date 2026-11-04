@@ -49,10 +49,17 @@ export class MailService {
     }
   }
 
-  sendPasswordReset(to: Recipient, link: string, language: Language) {
-    return this.send(to, passwordResetEmail(link, language, this.webappUrl), [
-      'password-reset',
-    ]);
+  sendPasswordReset(
+    to: Recipient,
+    link: string,
+    language: Language,
+    invite = false,
+  ) {
+    return this.send(
+      to,
+      passwordResetEmail(link, language, this.webappUrl, invite),
+      [invite ? 'account-invite' : 'password-reset'],
+    );
   }
 
   /** Confirmation to the customer and a notification to the team. */

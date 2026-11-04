@@ -74,7 +74,14 @@ describe('AdminService.overview', () => {
       ]),
     ),
   };
-  const service = new AdminService(bookings as never, quoteRequests as never);
+  const leads = { count: vi.fn(() => Promise.resolve(3)) };
+  const service = new AdminService(
+    bookings as never,
+    quoteRequests as never,
+    leads as never,
+    { lowStockCount: vi.fn(() => Promise.resolve(2)) } as never,
+    { revenueThisMonth: vi.fn(() => Promise.resolve(4500000)) } as never,
+  );
 
   it('counts per country and merges recent activity newest first', async () => {
     const overview = await service.overview('BJ');
@@ -82,10 +89,10 @@ describe('AdminService.overview', () => {
     expect(overview).toMatchObject({
       country: 'BJ',
       todayJobs: 2,
-      openLeads: 2,
+      openLeads: 3,
       pendingRequests: 4,
-      lowStock: null,
-      revenue: null,
+      lowStock: 2,
+      revenue: 4500000,
     });
     expect(overview.recentActivity.map((a) => a.reference)).toEqual([
       'TX-PR-000009',

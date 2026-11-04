@@ -2,10 +2,17 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Address } from '../addresses/address.entity.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { CatalogModule } from '../catalog/catalog.module.js';
+import { FinanceModule } from '../finance/finance.module.js';
 import { Booking } from '../bookings/booking.entity.js';
 import { Customer, CustomerLocation } from '../customers/customer.entity.js';
 import { CustomersService } from '../customers/customers.service.js';
-import { Fumigator } from '../fumigators/fumigator.entity.js';
+import {
+  Fumigator,
+  FumigatorCertificate,
+} from '../fumigators/fumigator.entity.js';
+import { Lead, LeadContact } from '../leads/lead.entity.js';
+import { Proforma, ProformaPayment } from '../proformas/proforma.entity.js';
 import { FumigatorsService } from '../fumigators/fumigators.service.js';
 import {
   PurchaseRequestContact,
@@ -16,6 +23,14 @@ import { QuoteRequest } from '../quote-requests/quote-request.entity.js';
 import { User } from '../users/user.entity.js';
 import { AdminBookingsController } from './admin-bookings.controller.js';
 import { AdminBookingsService } from './admin-bookings.service.js';
+import { AdminCustomersService } from './admin-customers.service.js';
+import { AdminLeadsController } from './admin-leads.controller.js';
+import { AdminLeadsService } from './admin-leads.service.js';
+import {
+  AdminProformasController,
+  SharedProformasController,
+} from './admin-proformas.controller.js';
+import { AdminProformasService } from './admin-proformas.service.js';
 import {
   AdminCustomersController,
   AdminFumigatorsController,
@@ -36,21 +51,34 @@ import { AdminService } from './admin.service.js';
       Customer,
       CustomerLocation,
       Fumigator,
+      FumigatorCertificate,
       User,
       Address,
+      Lead,
+      LeadContact,
+      Proforma,
+      ProformaPayment,
     ]),
     AuthModule,
+    CatalogModule,
+    FinanceModule,
   ],
   controllers: [
     AdminController,
     AdminBookingsController,
     AdminPurchaseRequestsController,
     AdminCustomersController,
+    AdminLeadsController,
+    AdminProformasController,
+    SharedProformasController,
     AdminFumigatorsController,
   ],
   providers: [
     AdminService,
     AdminBookingsService,
+    AdminCustomersService,
+    AdminLeadsService,
+    AdminProformasService,
     AdminPurchaseRequestsService,
     CustomersService,
     FumigatorsService,

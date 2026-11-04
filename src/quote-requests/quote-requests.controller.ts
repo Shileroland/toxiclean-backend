@@ -6,6 +6,7 @@ import {
   Post,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import {
   CurrentUser,
   OptionalSessionGuard,
@@ -22,7 +23,9 @@ export class QuoteRequestsController {
 
   /** Anyone can request a quote; it's linked to the account when signed in. */
   @Post()
-  @UseGuards(OptionalSessionGuard)
+  @UseGuards(ThrottlerGuard, OptionalSessionGuard)
+  // Each request emails the address given, so limit how fast one client can send them.
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   create(
     @Body() dto: CreateQuoteRequestDto,
     @CurrentUser() user?: User,

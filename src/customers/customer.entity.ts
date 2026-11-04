@@ -2,6 +2,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Generated,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
@@ -20,6 +21,11 @@ export type CustomerType = (typeof CUSTOMER_TYPES)[number];
 export class Customer {
   @PrimaryGeneratedColumn('uuid')
   id: string;
+
+  /** Sequential; shown to staff as the reference, e.g. TX-CU-000123. */
+  @Column({ type: 'int', unique: true })
+  @Generated('increment')
+  number: number;
 
   @Column({ type: 'varchar', length: 20, default: 'individual' })
   type: CustomerType;

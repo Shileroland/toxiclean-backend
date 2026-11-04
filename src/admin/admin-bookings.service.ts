@@ -24,6 +24,11 @@ import { formatBookingReference } from '../bookings/bookings.service.js';
 import { CustomersService } from '../customers/customers.service.js';
 import type { Fumigator } from '../fumigators/fumigator.entity.js';
 import { FumigatorsService } from '../fumigators/fumigators.service.js';
+import {
+  bookingFile,
+  type FileKind,
+  publicTreatmentRecord,
+} from '../fumigators/portal.service.js';
 import { StorageService } from '../storage/storage.service.js';
 import type { Country } from './admin.service.js';
 import type {
@@ -68,6 +73,7 @@ export function toAdminJob(booking: Booking) {
       ? { id: followUpOf.id, reference: followUpOf.reference }
       : null,
     hasAccount: Boolean(user),
+    treatmentRecord: publicTreatmentRecord(rest.treatmentRecord),
   };
 }
 
@@ -113,11 +119,13 @@ export class AdminBookingsService {
     return jobs.map(toAdminJob);
   }
 
-  /** Website requests to schedule, and customers' pending reschedule/cancel requests. */
+  /**
+   * Customers' pending reschedule/cancel requests. New website requests are leads until
+   * they're converted to a job (see Leads).
+   */
   async needsAttention(country: Country) {
     const rows = await this.bookings.find({
       where: [
-        { country, status: 'requested' },
         { country, rescheduleRequest: Not(IsNull()) },
         { country, cancellationRequest: Not(IsNull()) },
       ],
@@ -316,15 +324,20 @@ export class AdminBookingsService {
   }
 
   async openPhoto(id: number, index: number) {
-    const booking = await this.find(id);
-    const photo = booking.photos[index];
-    if (!photo) throw new NotFoundException('Photo not found.');
+    const { file, stream } = await this.openFile(id, 'photos', index);
+    return { photo: file, stream };
+  }
+
+  /** A customer photo, or one of the treatment record's files. */
+  async openFile(id: number, kind: FileKind, index: number) {
+    const found = bookingFile(await this.find(id), kind, index);
+    if (!found) throw new NotFoundException('File not found.');
     const stream = await this.storage
-      .get(`bookings/${photo.fileName}`, photo.storage)
+      .get(found.key, found.file.storage)
       .catch(() => {
-        throw new NotFoundException('Photo file is missing.');
+        throw new NotFoundException('The file is missing.');
       });
-    return { photo, stream };
+    return { file: found.file, stream };
   }
 }
 

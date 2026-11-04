@@ -6,8 +6,11 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-/** `super_admin`: the owner account; everything an admin can do (role management later). */
-export const ROLES = ['customer', 'admin', 'super_admin'] as const;
+/**
+ * `super_admin`: the owner account; everything an admin can do (role management later).
+ * `fumigator`: a technician signed in to the field portal (linked from `Fumigator.user`).
+ */
+export const ROLES = ['customer', 'admin', 'super_admin', 'fumigator'] as const;
 export type Role = (typeof ROLES)[number];
 
 /** Roles allowed into the admin area. */

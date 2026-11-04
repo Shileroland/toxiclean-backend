@@ -1,3 +1,6 @@
+import { InventoryService } from '../catalog/inventory.service.js';
+import { IncomeService } from '../finance/income.service.js';
+import { InvoicesService } from '../finance/invoices.service.js';
 import {
   BadRequestException,
   ConflictException,
@@ -63,12 +66,19 @@ export class AdminPurchaseRequestsService {
     @InjectRepository(PurchaseRequestNote)
     private readonly notes: Repository<PurchaseRequestNote>,
     private readonly config: ConfigService,
+    private readonly inventory: InventoryService,
+    private readonly income: IncomeService,
+    private readonly invoices: InvoicesService,
   ) {}
 
   async list({ country, q, statuses, page }: ListFilters) {
     const query = this.requests
       .createQueryBuilder('r')
       .where('r.country = :country', { country })
+      // Bulk quotes show here once their lead is won (converted to an order).
+      .andWhere(
+        `NOT EXISTS (SELECT 1 FROM leads l WHERE l."quoteRequestId" = r.id AND l.status <> 'won')`,
+      )
       .orderBy('r.createdAt', 'DESC')
       .skip((page - 1) * PAGE_SIZE)
       .take(PAGE_SIZE);
@@ -122,9 +132,11 @@ export class AdminPurchaseRequestsService {
     });
     if (!r) throw new NotFoundException('Purchase request not found.');
     const amountPaid = r.payments.reduce((sum, p) => sum + p.amount, 0);
+    const invoice = await this.invoices.linkedTo({ quoteRequestId: r.id });
     const { user, payments, contacts, internalNotes, ...rest } = r;
     return {
       ...rest,
+      invoice: invoice && { id: invoice.id, reference: invoice.reference },
       source: r.kind === 'bulk' ? 'bulk_quote' : 'direct_request',
       hasAccount: Boolean(user),
       estimatedTotal: sumItems(r, 'unitPrice'),
@@ -248,7 +260,22 @@ export class AdminPurchaseRequestsService {
       (sum, i) => sum + i.agreedUnitPrice * i.quantity,
       0,
     );
-    return this.setStatus(r, 'confirmed', { items, confirmedTotal });
+    await this.requests.update(r.id, {
+      status: 'confirmed',
+      items,
+      confirmedTotal,
+    });
+    // Holds the items in stock until the order is fulfilled.
+    await this.inventory.reserveFor({
+      id: r.id,
+      reference: r.reference,
+      country: r.country,
+      items,
+    });
+    // The customer is invoiced at the agreed prices.
+    r.items = items;
+    await this.invoices.forPurchaseRequest(r);
+    return this.get(r.id);
   }
 
   async decline(id: number, reason: string) {
@@ -259,6 +286,8 @@ export class AdminPurchaseRequestsService {
         'A payment has been recorded for this request, so it can’t be declined.',
       );
     }
+    await this.inventory.releaseFor(r);
+    await this.invoices.removeUnpaidFor(r.id);
     return this.setStatus(r, 'declined', { declineReason: reason });
   }
 
@@ -277,7 +306,7 @@ export class AdminPurchaseRequestsService {
     if (dto.amount > total - paid) {
       throw new BadRequestException('The amount is more than the balance due.');
     }
-    await this.payments.save(
+    const payment = await this.payments.save(
       this.payments.create({
         request: { id: r.id },
         amount: dto.amount,
@@ -287,6 +316,21 @@ export class AdminPurchaseRequestsService {
         recordedBy: { id: user.id },
       }),
     );
+    // Shows on the Finance › Income page (and the account, when it's one of ours).
+    await this.income.record({
+      country: r.country,
+      source: 'product_sales',
+      receivedFrom: r.organisationName ?? r.fullName,
+      description: `Payment for ${r.reference ?? 'purchase request'}`,
+      amount: dto.amount,
+      date: dto.paidOn,
+      method: dto.method,
+      accountName: dto.account,
+      quoteRequest: r,
+      invoice: await this.invoices.linkedTo({ quoteRequestId: r.id }),
+      sourcePayment: `pr-payment:${payment.id}`,
+      recordedBy: user,
+    });
     const status: QuoteStatus =
       paid + dto.amount >= total ? 'payment_received' : 'payment_pending';
     return this.setStatus(r, status);
@@ -302,6 +346,7 @@ export class AdminPurchaseRequestsService {
   async fulfil(id: number) {
     const r = await this.load(id);
     this.assertStatus(r, ['processing'], 'fulfilled');
+    await this.inventory.issueFor(r);
     return this.setStatus(
       r,
       r.deliveryMethod === 'delivery' ? 'dispatched' : 'ready_for_pickup',

@@ -34,15 +34,32 @@ function setup(row: Row | null, accounts?: string) {
   const contacts = repo();
   const notes = repo();
   const config = { get: vi.fn(() => accounts) };
+  const inventory = {
+    reserveFor: vi.fn(() => Promise.resolve()),
+    releaseFor: vi.fn(() => Promise.resolve()),
+    issueFor: vi.fn(() => Promise.resolve()),
+  };
+  const invoice = { id: 'inv1', reference: 'INV-2026-001' };
+  const invoices = {
+    linkedTo: vi.fn(() => Promise.resolve(invoice)),
+    forPurchaseRequest: vi.fn(() => Promise.resolve(invoice)),
+    removeUnpaidFor: vi.fn(() => Promise.resolve()),
+  };
+  const income = { record: vi.fn(() => Promise.resolve()) };
   const service = new AdminPurchaseRequestsService(
     requests as never,
     payments as never,
     contacts as never,
     notes as never,
     config as never,
+    inventory as never,
+    income as never,
+    invoices as never,
   );
   return {
     service,
+    invoices,
+    income,
     requests,
     payments,
     contacts,
@@ -111,8 +128,21 @@ describe('AdminPurchaseRequestsService', () => {
   });
 
   it('confirms with the agreed prices and total', async () => {
-    const { service, state } = setup({ ...base, status: 'contacted' });
-    await service.confirm(7, [110_000, 40_000]);
+    const { service, state, invoices } = setup({
+      ...base,
+      status: 'contacted',
+    });
+    const result = await service.confirm(7, [110_000, 40_000]);
+    expect(invoices.forPurchaseRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 7,
+        items: [
+          expect.objectContaining({ agreedUnitPrice: 110_000 }),
+          expect.objectContaining({ agreedUnitPrice: 40_000 }),
+        ],
+      }),
+    );
+    expect(result.invoice).toEqual({ id: 'inv1', reference: 'INV-2026-001' });
     expect(state()).toMatchObject({
       status: 'confirmed',
       confirmedTotal: 300_000,
@@ -136,6 +166,7 @@ describe('AdminPurchaseRequestsService', () => {
   it('declines with a reason, but not once a payment exists', async () => {
     const ok = setup({ ...base, status: 'contacted' });
     await ok.service.decline(7, 'Out of stock');
+    expect(ok.invoices.removeUnpaidFor).toHaveBeenCalledWith(7);
     expect(ok.state()).toMatchObject({
       status: 'declined',
       declineReason: 'Out of stock',

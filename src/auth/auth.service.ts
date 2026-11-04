@@ -22,6 +22,7 @@ import { Session } from './session.entity.js';
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 @Injectable()
 export class AuthService {
@@ -85,7 +86,8 @@ export class AuthService {
   }
 
   /** Always succeeds, so the response never reveals whether an email is registered. */
-  async requestPasswordReset(email: string) {
+  /** `invite`: first-time setup for an account staff created; a longer-lived link. */
+  async requestPasswordReset(email: string, invite = false) {
     const user = await this.users.findOne({ where: { email } });
     if (!user) return;
 
@@ -97,7 +99,9 @@ export class AuthService {
       this.resetTokens.create({
         tokenHash: hashToken(token),
         user,
-        expiresAt: new Date(Date.now() + RESET_TTL_MS),
+        expiresAt: new Date(
+          Date.now() + (invite ? INVITE_TTL_MS : RESET_TTL_MS),
+        ),
         usedAt: null,
       }),
     );
@@ -107,6 +111,7 @@ export class AuthService {
       { email: user.email, name: user.fullName },
       `${base.replace(/\/$/, '')}${pagePrefix(user.language)}/reset-password?token=${token}`,
       user.language,
+      invite,
     );
   }
 

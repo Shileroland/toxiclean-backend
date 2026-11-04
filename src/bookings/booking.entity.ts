@@ -56,6 +56,29 @@ export type BookingPhoto = {
   size: number;
 };
 
+export type ChemicalUsed = {
+  product: string;
+  quantity: string;
+  applicationMethod: string;
+  appliedBy: string;
+};
+
+/** A file stored at `treatments/<fileName>`; same shape as a booking photo. */
+export type TreatmentFile = BookingPhoto;
+
+/** What the fumigator recorded when completing the job in the field portal. */
+export type TreatmentRecord = {
+  treatmentPerformed: string;
+  /** Empty when no chemicals were used. */
+  chemicals: ChemicalUsed[];
+  beforePhotos: TreatmentFile[];
+  afterPhotos: TreatmentFile[];
+  /** The customer's signed sign-off form (photo or PDF). */
+  signOff: TreatmentFile;
+  submittedBy: { id: string; fullName: string };
+  submittedAt: string;
+};
+
 @Entity('bookings')
 export class Booking {
   @PrimaryGeneratedColumn()
@@ -165,6 +188,10 @@ export class Booking {
 
   @Column({ type: 'jsonb', nullable: true })
   cancellationRequest: CancellationRequest | null;
+
+  /** Filled in by the fumigator on completion. */
+  @Column({ type: 'jsonb', nullable: true })
+  treatmentRecord: TreatmentRecord | null;
 
   @Column({ type: 'timestamptz', nullable: true })
   completedAt: Date | null;

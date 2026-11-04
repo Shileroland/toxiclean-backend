@@ -16,6 +16,7 @@ import {
   type TIME_SLOTS,
 } from './booking.entity.js';
 import { CreateBookingDto } from './dto/create-booking.dto.js';
+import { LeadsService } from '../leads/leads.service.js';
 
 export function formatBookingReference(id: number) {
   return `TX-BK-${String(id).padStart(6, '0')}`;
@@ -33,6 +34,7 @@ export class BookingsService {
     private readonly bookings: Repository<Booking>,
     private readonly mail: MailService,
     private readonly storage: StorageService,
+    private readonly leads: LeadsService,
   ) {}
 
   async create(
@@ -71,6 +73,8 @@ export class BookingsService {
     await this.bookings.update(saved.id, { reference });
     // Sent in the background so a slow email provider doesn't hold up the response.
     saved.reference = reference;
+    // Website requests are followed up as leads until they're converted to a job.
+    await this.leads.forBooking(saved);
     void this.mail.bookingReceived(saved, language);
     return { reference };
   }

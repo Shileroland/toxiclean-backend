@@ -1,3 +1,5 @@
+import { InventoryService } from '../catalog/inventory.service.js';
+import { IncomeService } from '../finance/income.service.js';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
@@ -13,6 +15,7 @@ import {
   COUNTRIES,
   QuoteRequest,
 } from '../quote-requests/quote-request.entity.js';
+import { Lead, OPEN_LEAD_STATUSES } from '../leads/lead.entity.js';
 
 export type Country = (typeof COUNTRIES)[number];
 
@@ -41,10 +44,10 @@ export type AdminOverview = {
   openLeads: number;
   /** Product / bulk quote requests nobody has picked up yet. */
   pendingRequests: number;
-  /** Not tracked yet: there's no inventory. */
-  lowStock: null;
-  /** Not tracked yet: there are no payments. */
-  revenue: null;
+  /** Products at or below their reorder level somewhere in the country. */
+  lowStock: number;
+  /** Income recorded this month, in the country's currency. */
+  revenue: number;
   recentActivity: Activity[];
 };
 
@@ -57,6 +60,9 @@ export class AdminService {
     private readonly bookings: Repository<Booking>,
     @InjectRepository(QuoteRequest)
     private readonly quoteRequests: Repository<QuoteRequest>,
+    @InjectRepository(Lead) private readonly leads: Repository<Lead>,
+    private readonly inventory: InventoryService,
+    private readonly income: IncomeService,
   ) {}
 
   async overview(country: Country): Promise<AdminOverview> {
@@ -84,8 +90,13 @@ export class AdminService {
             },
           ],
         }),
-        this.bookings.count({ where: { country, status: 'requested' } }),
-        this.quoteRequests.count({ where: { country, status: 'requested' } }),
+        this.leads.count({
+          where: { country, status: In(OPEN_LEAD_STATUSES) },
+        }),
+        // Bulk quotes are followed up as leads, so only product requests count here.
+        this.quoteRequests.count({
+          where: { country, kind: 'product', status: 'requested' },
+        }),
         this.bookings.find({
           where: { country },
           order: { createdAt: 'DESC' },
@@ -123,8 +134,8 @@ export class AdminService {
       todayJobs,
       openLeads,
       pendingRequests,
-      lowStock: null,
-      revenue: null,
+      lowStock: await this.inventory.lowStockCount(country),
+      revenue: await this.income.revenueThisMonth(country),
       recentActivity,
     };
   }
