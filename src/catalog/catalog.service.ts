@@ -278,12 +278,15 @@ export class CatalogService {
     location,
     q,
     categories,
+    published,
     page,
   }: {
     country: CatalogCountry;
     location?: string;
     q?: string;
     categories?: ProductCategory[];
+    /** true: only visible on the shop; false: only hidden. */
+    published?: boolean;
     page: number;
   }) {
     if (location && !branchesOf(country).includes(location)) {
@@ -302,6 +305,9 @@ export class CatalogService {
     }
     if (categories?.length) {
       query.andWhere('p.category IN (:...categories)', { categories });
+    }
+    if (published !== undefined) {
+      query.andWhere('p.published = :published', { published });
     }
     const [rows, total] = await query.getManyAndCount();
     const levels = await this.inventory.stockFor(
@@ -325,6 +331,7 @@ export class CatalogService {
           available: stock.available,
           stockStatus: stock.status,
           licensedCountries: this.licensed(p),
+          published: p.published,
         };
       }),
       total,
@@ -373,6 +380,7 @@ export class CatalogService {
       priceNgn: p.priceNgn,
       priceXof: p.priceXof,
       rentable: p.rentable,
+      published: p.published,
       regulatoryAuthority: p.regulatoryAuthority,
       registrationNumber: p.registrationNumber,
       safetyDataSheet: fileInfo(p.safetyDataSheet),
@@ -395,10 +403,11 @@ export class CatalogService {
     );
   }
 
-  /** The public catalog: only what is sold somewhere. */
+  /** The public catalog: only published products that are sold somewhere. */
   async shopProducts() {
     const rows = (
       await this.products.find({
+        where: { published: true },
         relations: { brand: true },
         order: { name: 'ASC' },
       })
@@ -501,7 +510,11 @@ export class CatalogService {
   async createProduct(dto: ProductDto, country: CatalogCountry) {
     const fields = await this.fields(dto);
     const product = await this.saveProduct(
-      this.products.create({ ...fields, slug: await this.freeSlug(dto.name) }),
+      this.products.create({
+        ...fields,
+        published: dto.published ?? true,
+        slug: await this.freeSlug(dto.name),
+      }),
     );
     return this.productDetails(product.id, country);
   }
@@ -510,6 +523,7 @@ export class CatalogService {
   async updateProduct(id: string, dto: ProductDto, country: CatalogCountry) {
     const product = await this.findProduct(id);
     Object.assign(product, await this.fields(dto));
+    if (dto.published !== undefined) product.published = dto.published;
     if (product.category !== 'chemicals' && product.safetyDataSheet) {
       await this.removeFile(
         `products/${product.safetyDataSheet.fileName}`,
@@ -518,6 +532,14 @@ export class CatalogService {
       product.safetyDataSheet = null;
     }
     await this.saveProduct(product);
+    return this.productDetails(id, country);
+  }
+
+  /** Shows or hides the product on the public shop; nothing else changes. */
+  async setVisibility(id: string, published: boolean, country: CatalogCountry) {
+    const product = await this.findProduct(id);
+    product.published = published;
+    await this.products.save(product);
     return this.productDetails(id, country);
   }
 

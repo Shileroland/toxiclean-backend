@@ -29,6 +29,7 @@ import {
   BrandDto,
   MAX_PRODUCT_IMAGES,
   ProductDto,
+  ProductVisibilityDto,
   ReceiveStockDto,
   ReorderLevelDto,
   SupplierDto,
@@ -139,13 +140,14 @@ export class AdminBrandsController {
 export class AdminProductsController {
   constructor(private readonly catalog: CatalogService) {}
 
-  /** ?country=NG&location=Ikeja Branch&q=…&category=chemicals&page=1 */
+  /** ?country=NG&location=Ikeja Branch&q=…&category=chemicals&visibility=hidden&page=1 */
   @Get('list')
   list(
     @Query('country') country?: string,
     @Query('location') location?: string,
     @Query('q') q?: string,
     @Query('category') category?: string,
+    @Query('visibility') visibility?: string,
     @Query('page') page?: string,
   ) {
     return this.catalog.productPage({
@@ -153,6 +155,12 @@ export class AdminProductsController {
       location: location || undefined,
       q: search(q),
       categories: listParam<ProductCategory>(category, PRODUCT_CATEGORIES),
+      published:
+        visibility === 'visible'
+          ? true
+          : visibility === 'hidden'
+            ? false
+            : undefined,
       page: pageParam(page),
     });
   }
@@ -185,6 +193,16 @@ export class AdminProductsController {
     @Query('country') country?: string,
   ) {
     return this.catalog.updateProduct(id, dto, countryParam(country));
+  }
+
+  /** Show or hide the product on the public shop: { published: boolean }. */
+  @Patch(':id/visibility')
+  setVisibility(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ProductVisibilityDto,
+    @Query('country') country?: string,
+  ) {
+    return this.catalog.setVisibility(id, dto.published, countryParam(country));
   }
 
   /** Multipart `images` (PNG/JPG), added after the existing ones. */
