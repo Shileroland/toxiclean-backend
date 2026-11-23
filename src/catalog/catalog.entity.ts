@@ -142,6 +142,10 @@ export class Product {
   @Column({ type: 'boolean', default: false })
   rentable: boolean;
 
+  /** False hides the product from the public shop (listing, page, quote requests). */
+  @Column({ type: 'boolean', default: true })
+  published: boolean;
+
   /** Chemicals only: e.g. NAFDAC. */
   @Column({ type: 'varchar', length: 100, nullable: true })
   regulatoryAuthority: string | null;

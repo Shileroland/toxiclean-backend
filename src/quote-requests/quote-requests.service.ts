@@ -75,7 +75,9 @@ export class QuoteRequestsService {
     currency: QuoteRequest['currency'],
   ): Promise<QuoteRequestItem[]> {
     const slugs = [...new Set(items.map((i) => i.productSlug))];
-    const products = await this.products.find({ where: { slug: In(slugs) } });
+    const products = await this.products.find({
+      where: { slug: In(slugs), published: true },
+    });
     return items.map((item) => {
       const product = products.find((p) => p.slug === item.productSlug);
       if (!product) {

@@ -168,6 +168,11 @@ export class ProductDto {
   @IsString()
   @MaxLength(100)
   registrationNumber?: string | null;
+
+  /** Visible on the public shop; new products default to visible, updates keep it. */
+  @IsOptional()
+  @IsBoolean()
+  published?: boolean;
 }
 
 export class PrimaryImageDto {
@@ -266,4 +271,9 @@ export class ReorderLevelDto {
   @Min(0)
   @Max(1_000_000)
   reorderLevel: number | null;
+}
+
+export class ProductVisibilityDto {
+  @IsBoolean()
+  published: boolean;
 }
