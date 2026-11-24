@@ -16,6 +16,7 @@ import { PortalModule } from './fumigators/portal.module.js';
 import { QuoteRequestsModule } from './quote-requests/quote-requests.module.js';
 import { MailModule } from './mail/mail.module.js';
 import { StorageModule } from './storage/storage.module.js';
+import { TestimonialsModule } from './testimonials/testimonials.module.js';
 import { UsersModule } from './users/users.module.js';
 
 @Module({
@@ -47,6 +48,7 @@ import { UsersModule } from './users/users.module.js';
     PortalModule,
     CatalogModule,
     FinanceModule,
+    TestimonialsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
