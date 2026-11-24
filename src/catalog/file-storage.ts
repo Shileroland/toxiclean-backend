@@ -10,7 +10,7 @@ import type { StoredFile } from './catalog.entity.js';
 
 export type Upload = { buffer: Buffer; originalname: string; size: number };
 
-export type CatalogFolder = 'products' | 'brands' | 'expenses';
+export type CatalogFolder = 'products' | 'brands' | 'expenses' | 'testimonials';
 
 /**
  * Checks and stores one file under `folder/` with a random name. `images` allows PNG/JPG
