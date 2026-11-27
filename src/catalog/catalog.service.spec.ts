@@ -1,4 +1,5 @@
-import { agreementStatus, slugify } from './catalog.service.js';
+import { ConflictException } from '@nestjs/common';
+import { agreementStatus, CatalogService, slugify } from './catalog.service.js';
 import { stockStatus, summarise } from './inventory.service.js';
 
 const level = (
@@ -53,5 +54,51 @@ describe('slugify', () => {
       'solo-pressure-sprayer-5l',
     );
     expect(slugify('Insecticide Résiduel')).toBe('insecticide-residuel');
+  });
+});
+
+describe('removeProduct', () => {
+  const file = (fileName: string) => ({ fileName, storage: 'local' });
+  const setup = (reserved: number | null) => {
+    const product = {
+      id: 'p1',
+      images: [file('a.png'), file('b.png')],
+      safetyDataSheet: file('sds.pdf'),
+    };
+    const products = {
+      findOne: vi.fn().mockResolvedValue(product),
+      delete: vi.fn().mockResolvedValue(undefined),
+      manager: {
+        getRepository: () => ({ sum: vi.fn().mockResolvedValue(reserved) }),
+      },
+    };
+    const storage = { delete: vi.fn().mockResolvedValue(undefined) };
+    const service = new CatalogService(
+      {} as never,
+      products as never,
+      {} as never,
+      storage as never,
+    );
+    return { service, products, storage };
+  };
+
+  it('deletes the product and its files', async () => {
+    const { service, products, storage } = setup(null);
+    await service.removeProduct('p1');
+    expect(products.delete).toHaveBeenCalledWith('p1');
+    expect(storage.delete.mock.calls.map((c) => c[0])).toEqual([
+      'products/a.png',
+      'products/b.png',
+      'products/sds.pdf',
+    ]);
+  });
+
+  it('refuses while stock is held for a purchase request', async () => {
+    const { service, products, storage } = setup(3);
+    await expect(service.removeProduct('p1')).rejects.toBeInstanceOf(
+      ConflictException,
+    );
+    expect(products.delete).not.toHaveBeenCalled();
+    expect(storage.delete).not.toHaveBeenCalled();
   });
 });

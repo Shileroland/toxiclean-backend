@@ -19,6 +19,7 @@ import {
   type CatalogCountry,
   Product,
   type ProductCategory,
+  StockLevel,
   type StoredFile,
 } from './catalog.entity.js';
 import { fileInfo, storeCatalogFile, type Upload } from './file-storage.js';
@@ -541,6 +542,31 @@ export class CatalogService {
     product.published = published;
     await this.products.save(product);
     return this.productDetails(id, country);
+  }
+
+  /**
+   * Deletes the product with its stock levels, movement history and files. Purchase
+   * requests keep their own copy of the name, so they are unaffected. Refused while
+   * stock is held for an open purchase request, since letting it go needs the product.
+   */
+  async removeProduct(id: string) {
+    const product = await this.findProduct(id);
+    const held = await this.products.manager
+      .getRepository(StockLevel)
+      .sum('reserved', { product: { id } });
+    if (held) {
+      throw new ConflictException(
+        `${held} unit${held === 1 ? ' is' : 's are'} held for open purchase requests. Fulfil or cancel them first, or hide the product instead.`,
+      );
+    }
+    await this.products.delete(id);
+    const files = [
+      ...product.images,
+      ...(product.safetyDataSheet ? [product.safetyDataSheet] : []),
+    ];
+    await Promise.all(
+      files.map((f) => this.removeFile(`products/${f.fileName}`, f)),
+    );
   }
 
   async addImages(id: string, files: Upload[], country: CatalogCountry) {
