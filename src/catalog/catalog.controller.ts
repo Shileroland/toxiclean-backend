@@ -205,6 +205,13 @@ export class AdminProductsController {
     return this.catalog.setVisibility(id, dto.published, countryParam(country));
   }
 
+  /** Deletes the product, its stock and its files. 409 while stock is held for a request. */
+  @Delete(':id')
+  @HttpCode(204)
+  remove(@Param('id', ParseUUIDPipe) id: string) {
+    return this.catalog.removeProduct(id);
+  }
+
   /** Multipart `images` (PNG/JPG), added after the existing ones. */
   @Post(':id/images')
   @UseInterceptors(
